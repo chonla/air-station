@@ -45,6 +45,10 @@ type Station struct {
 	Secret string
 }
 
+type AboutStationResponse struct {
+	Name string
+}
+
 var db *gorm.DB
 
 const TWENTY_FOUR_HOURS = 24 * time.Hour
@@ -155,6 +159,14 @@ func createAirQualityRecord(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func getAboutStation(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+
+	_ = json.NewEncoder(w).Encode(AboutStationResponse{
+		Name: "Air Station",
+	})
+}
+
 func airQualityHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
@@ -164,6 +176,16 @@ func airQualityHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO:
 	// case "DELETE":
 	// DELETE to purge obsolete data
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+}
+
+func aboutHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		getAboutStation(w, r)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -198,7 +220,8 @@ func main() {
 	db.AutoMigrate(&AirQuality{}, &Station{})
 
 	http.HandleFunc("/aq", airQualityHandler)
+	http.HandleFunc("/", aboutHandler)
 
-	logrus.Info(fmt.Sprintf("Air Station Master is listeninig on [:%s]", port))
+	logrus.Info(fmt.Sprintf("Air Station Master is listening on [:%s]", port))
 	http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
 }
