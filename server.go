@@ -15,6 +15,11 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	APP_NAME    = "Air Station"
+	APP_VERSION = "1.1"
+)
+
 type AirQualityRequest struct {
 	PM1   int64 `json:"pm1"`
 	PM2_5 int64 `json:"pm2.5"`
@@ -46,7 +51,8 @@ type Station struct {
 }
 
 type AboutStationResponse struct {
-	Name string
+	Name    string
+	Version string
 }
 
 var db *gorm.DB
@@ -159,20 +165,47 @@ func createAirQualityRecord(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func setupAirQualityCORS(w http.ResponseWriter, r *http.Request) {
+	allowedOrigin := os.Getenv("ACCESS_CONTROL_ALLOW_ORIGIN")
+	if allowedOrigin == "" {
+		allowedOrigin = "*"
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-CSRF-Token")
+}
+
+func setupAboutCORS(w http.ResponseWriter, r *http.Request) {
+	allowedOrigin := os.Getenv("ACCESS_CONTROL_ALLOW_ORIGIN")
+	if allowedOrigin == "" {
+		allowedOrigin = "*"
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-CSRF-Token")
+}
+
 func getAboutStation(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	_ = json.NewEncoder(w).Encode(AboutStationResponse{
-		Name: "Air Station",
+		Name:    APP_NAME,
+		Version: APP_VERSION,
 	})
 }
 
 func airQualityHandler(w http.ResponseWriter, r *http.Request) {
+	setupAirQualityCORS(w, r)
+
 	switch r.Method {
 	case "POST":
 		createAirQualityRecord(w, r)
 	case "GET":
 		getAirQualityRecords(w, r)
+	case "OPTIONS":
+		return
 	// TODO:
 	// case "DELETE":
 	// DELETE to purge obsolete data
@@ -183,6 +216,8 @@ func airQualityHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func aboutHandler(w http.ResponseWriter, r *http.Request) {
+	setupAboutCORS(w, r)
+
 	switch r.Method {
 	case "GET":
 		getAboutStation(w, r)
