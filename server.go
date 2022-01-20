@@ -17,7 +17,7 @@ import (
 
 const (
 	APP_NAME    = "Air Station"
-	APP_VERSION = "1.1.1"
+	APP_VERSION = "1.1.2"
 )
 
 type AirQualityRequest struct {
@@ -202,6 +202,7 @@ func getAboutStation(w http.ResponseWriter, r *http.Request) {
 
 func airQualityHandler(w http.ResponseWriter, r *http.Request) {
 	setupAirQualityCORS(w, r)
+	setupJSONResponse(w, r)
 
 	switch r.Method {
 	case "POST":
@@ -221,6 +222,7 @@ func airQualityHandler(w http.ResponseWriter, r *http.Request) {
 
 func aboutHandler(w http.ResponseWriter, r *http.Request) {
 	setupAboutCORS(w, r)
+	setupJSONResponse(w, r)
 
 	switch r.Method {
 	case "GET":
