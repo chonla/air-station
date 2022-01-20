@@ -17,7 +17,7 @@ import (
 
 const (
 	APP_NAME    = "Air Station"
-	APP_VERSION = "1.1.2"
+	APP_VERSION = "1.1.3"
 )
 
 type AirQualityRequest struct {
@@ -35,10 +35,10 @@ type AirQuality struct {
 }
 
 type AirQualityResponse struct {
-	PM1       int64 `json:"pm1"`
-	PM2_5     int64 `json:"pm2.5"`
-	PM10      int64 `json:"pm10"`
-	Timestamp time.Time
+	PM1       int64     `json:"pm1"`
+	PM2_5     int64     `json:"pm2.5"`
+	PM10      int64     `json:"pm10"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 func (AirQualityResponse) TableName() string {
