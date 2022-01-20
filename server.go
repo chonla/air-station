@@ -17,7 +17,7 @@ import (
 
 const (
 	APP_NAME    = "Air Station"
-	APP_VERSION = "1.1"
+	APP_VERSION = "1.1.1"
 )
 
 type AirQualityRequest struct {
@@ -163,6 +163,10 @@ func createAirQualityRecord(w http.ResponseWriter, r *http.Request) {
 
 	logrus.Infof("Incoming report from %s at %s ...", stationName, aq.Timestamp.Format("15:04:05"))
 	w.WriteHeader(http.StatusCreated)
+}
+
+func setupJSONResponse(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 }
 
 func setupAirQualityCORS(w http.ResponseWriter, r *http.Request) {
