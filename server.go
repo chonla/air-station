@@ -3,9 +3,11 @@ package main
 import (
 	b64 "encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -17,7 +19,7 @@ import (
 
 const (
 	APP_NAME    = "Air Station"
-	APP_VERSION = "1.1.3"
+	APP_VERSION = "1.2.0"
 )
 
 type AirQualityRequest struct {
@@ -46,6 +48,13 @@ func (AirQualityResponse) TableName() string {
 }
 
 type Station struct {
+	Key       string
+	Type      string
+	Version   string
+	UpdatedAt time.Time
+}
+
+type StationCredential struct {
 	Key    string
 	Secret string
 }
@@ -58,6 +67,8 @@ type AboutStationResponse struct {
 var db *gorm.DB
 
 const TWENTY_FOUR_HOURS = 24 * time.Hour
+
+var versionPattern = regexp.MustCompile(`^([\w]+) \(([^\)]+)\)$`)
 
 func isAuthorizedRequest(r *http.Request) (string, bool) {
 	credential := ""
@@ -81,7 +92,7 @@ func isAuthorizedRequest(r *http.Request) (string, bool) {
 	err = db.Where("key = ? AND secret = ?", credentialTokens[0], credentialTokens[1]).
 		First(&result).Error
 	if err != nil {
-		logrus.Info("Unable to find credential.")
+		logrus.Info("Unable to match credential.")
 		return "", false
 	}
 	return credentialTokens[0], true
@@ -98,6 +109,18 @@ func isDataAcceptable(r *http.Request) bool {
 	}
 
 	return acceptable
+}
+
+func getStationVersion(r *http.Request) (string, string, bool) {
+	for headerName, headerValues := range r.Header {
+		for _, headerValue := range headerValues {
+			if headerName == "X-Station-Version" && versionPattern.MatchString(headerValue) {
+				matches := versionPattern.FindStringSubmatch(headerValue)
+				return matches[1], matches[2], true
+			}
+		}
+	}
+	return "", "", false
 }
 
 func getAirQualityRecords(w http.ResponseWriter, r *http.Request) {
@@ -133,6 +156,14 @@ func createAirQualityRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get Station Version
+	stationType, stationVersion, stationVersionAvailable := getStationVersion(r)
+	if !stationVersionAvailable {
+		logrus.Info("Request from unknown station version is not acceptable.")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	if !isDataAcceptable(r) {
 		logrus.Info("Content type is not acceptable.")
 		w.WriteHeader(http.StatusBadRequest)
@@ -163,6 +194,29 @@ func createAirQualityRecord(w http.ResponseWriter, r *http.Request) {
 
 	logrus.Infof("Incoming report from %s at %s ...", stationName, aq.Timestamp.Format("15:04:05"))
 	w.WriteHeader(http.StatusCreated)
+
+	logrus.Info("Updating Station Version ...")
+	var version Station
+	err = db.Where("key = ?", stationName).First(&version).Error
+	if err == nil {
+		err = db.Model(&Station{}).Where("key = ?", stationName).Updates(Station{UpdatedAt: time.Now(), Version: stationVersion}).Error
+		if err != nil {
+			logrus.Errorf("Unable to update the existing station version: %v", err)
+		}
+	} else {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			version = Station{
+				Key:       stationName,
+				Type:      stationType,
+				Version:   stationVersion,
+				UpdatedAt: time.Now(),
+			}
+			err = db.Create(&version).Error
+			logrus.Errorf("Unable to create new station version: %v", err)
+		} else {
+			logrus.Errorf("Unable to get the existing station version data: %v", err)
+		}
+	}
 }
 
 func setupJSONResponse(w http.ResponseWriter, r *http.Request) {
@@ -258,7 +312,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	db.AutoMigrate(&AirQuality{}, &Station{})
+	db.AutoMigrate(&AirQuality{}, &Station{}, &StationCredential{})
 
 	http.HandleFunc("/aq", airQualityHandler)
 	http.HandleFunc("/", aboutHandler)
