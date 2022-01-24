@@ -88,7 +88,7 @@ func isAuthorizedRequest(r *http.Request) (string, bool) {
 
 	credentialTokens := strings.Split(string(plainCredential), ":")
 
-	var result Station
+	var result StationCredential
 	err = db.Where("key = ? AND secret = ?", credentialTokens[0], credentialTokens[1]).
 		First(&result).Error
 	if err != nil {
